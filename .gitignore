@@ -5,3 +5,5 @@ build/
 *.wasm
 *.aot
 *.ll
+*.o
+*.S

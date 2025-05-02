@@ -20,13 +20,12 @@
 #define WASM_SIZE   0x050000   // 320KB
 #define CONFIG_SIZE 0x010000   // 64KB
 
-char* MMAP_AREA = NULL;
-char* FLASH_AREA = NULL;
-char* RAM_AREA = NULL;
+void* MMAP_AREA = NULL;
+void* FLASH_AREA = NULL;
+void* RAM_AREA = NULL;
 
 #define WASM_AREA (FLASH_AREA + 0x190000)
 #define CONFIG_AREA (FLASH_AREA + 0x1F0000)
-
 
 #define ALIGN(n, m)  (((n) + (m) - 1) & ~((m) - 1)) 
 
@@ -190,6 +189,9 @@ int main() {
 
     mprotect(FLASH_AREA, FLASH_SIZE, PROT_READ | PROT_EXEC);
     mprotect(RAM_AREA, RAM_SIZE, PROT_READ | PROT_WRITE);
+
+    volatile void* x = FLASH_AREA + 0x190140;
+    (void)*(int*)x;
 
     // Call the main function in the wasm module
     bool res = wasm_runtime_call_wasm(exec_env, main_func, 2,

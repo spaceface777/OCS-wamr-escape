@@ -19,14 +19,19 @@ endif()
 
 if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
     set(WAMR_BUILD_TARGET "X86_64")
+    set(WAMRC_TARGET "x86_64")
 elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm")
     set(WAMR_BUILD_TARGET "ARM")
+    set(WAMRC_TARGET "armv4")
 elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "armv7l")
     set(WAMR_BUILD_TARGET "ARM")
+    set(WAMRC_TARGET "armv7")
 elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
     set(WAMR_BUILD_TARGET "AARCH64")
+    set(WAMRC_TARGET "aarch64v8")
 elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
     set(WAMR_BUILD_TARGET "AARCH64")
+    set(WAMRC_TARGET "aarch64v8")
 else()
     message(FATAL_ERROR "Unsupported target: ${CMAKE_SYSTEM_PROCESSOR}")
 endif()
@@ -66,8 +71,37 @@ set(SOURCES
     src/main.c
 )
 
+set(WAMRC_FLAGS "--target=${WAMRC_TARGET}" "--xip" "--bounds-checks=0")
+
+add_custom_command(
+    OUTPUT exploit.aot exploit.o exploit.ll exploit.wasm asm.txt
+    COMMAND /opt/homebrew/opt/llvm@18/bin/clang -Wall -Wextra -target wasm32 -nostdlib
+            -Wl,--no-entry,--allow-undefined,--export-dynamic,-z,stack-size=16384,--max-memory=65536
+            -O3 ${CMAKE_CURRENT_SOURCE_DIR}/exploit/exploit.c -o exploit.wasm
+
+    COMMAND wamrc ${WAMRC_FLAGS} --format=llvmir-opt -o exploit.ll exploit.wasm
+
+    COMMAND wamrc ${WAMRC_FLAGS} --format=object -o exploit.o exploit.wasm
+
+    COMMAND wamrc ${WAMRC_FLAGS} -o exploit.aot exploit.wasm
+
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/exploit* ${CMAKE_CURRENT_SOURCE_DIR}
+
+    COMMAND objdump -d exploit.o > exploit.S
+
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/exploit/exploit.c
+    COMMENT "Building wasm and AOT files"
+)
+
+add_custom_target(
+    build_exploit ALL
+    DEPENDS exploit.aot exploit.o exploit.ll exploit.wasm asm.txt
+)
+
 # Create executable
 add_executable(${PROJECT_NAME} ${SOURCES})
+
+add_dependencies(${PROJECT_NAME} build_exploit)
 
 # Link libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
