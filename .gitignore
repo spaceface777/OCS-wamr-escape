@@ -1,9 +1,0 @@
-build/
-.vscode/
-*.sln
-.DS_Store
-*.wasm
-*.aot
-*.ll
-*.o
-*.S
